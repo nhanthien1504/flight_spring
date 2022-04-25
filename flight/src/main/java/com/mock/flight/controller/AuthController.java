@@ -5,9 +5,9 @@ import com.mock.flight.common.JwtUtils;
 import com.mock.flight.entities.Role;
 import com.mock.flight.entities.User;
 import com.mock.flight.repository.RoleRepository;
-import com.mock.flight.repository.UserReponsity;
+import com.mock.flight.repository.UserRepository;
 import com.mock.flight.security.UserDetailsImp;
-import com.mock.flight.security.dto.JwtRepsonse;
+import com.mock.flight.security.dto.JwtResponse;
 import com.mock.flight.security.dto.Login;
 import com.mock.flight.security.dto.MessegeResponse;
 import com.mock.flight.security.dto.Register;
@@ -19,24 +19,22 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "http://localhost:8080", exposedHeaders = "token")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-
     @Autowired
     AuthenticationManager authenticationManager;
 
     @Autowired
-    UserReponsity userRepository;
+    UserRepository userRepository;
 
     @Autowired
     RoleRepository roleRepository;
@@ -45,21 +43,22 @@ public class AuthController {
     PasswordEncoder encoder;
 
     @Autowired
-    JwtUtils jwtutils;
+    JwtUtils jwtUtils;
 
     @PostMapping("/signin")
-    public ResponseEntity<?> authenticateUser(@Validated @RequestBody Login loginRequest) {
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody Login loginRequest) {
+
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUserName(),
-                        loginRequest.getPassword()));
+                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtutils.generateJwtToken(authentication);
+        String jwt = jwtUtils.generateJwtToken(authentication);
         UserDetailsImp userDetails = (UserDetailsImp) authentication.getPrincipal();
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(new JwtRepsonse(jwt,
+
+        return ResponseEntity.ok(new JwtResponse(jwt,
                 userDetails.getId(),
                 userDetails.getUsername(),
                 userDetails.getEmail(),
@@ -67,12 +66,13 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@Validated @RequestBody Register signUpRequest) {
-        if (userRepository.existsByUsername(signUpRequest.getUserName())) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody Register signUpRequest) {
+        if (userRepository.existsByUsername(signUpRequest.getUsername())){
             return ResponseEntity
                     .badRequest()
                     .body(new MessegeResponse("Error: Username is already taken!"));
         }
+
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             return ResponseEntity
                     .badRequest()
@@ -80,11 +80,14 @@ public class AuthController {
         }
 
         // Create new user's account
-        User user = new User(signUpRequest.getUserName(),
+        User user = new User(
+                signUpRequest.getUsername(),
                 signUpRequest.getEmail(),
                 encoder.encode(signUpRequest.getPassword()));
-        Set<Role> strRoles = signUpRequest.getRoles();
+
+        Set<String> strRoles = signUpRequest.getRole();
         Set<Role> roles = new HashSet<>();
+
         if (strRoles == null) {
             Role userRole = roleRepository.findByName(ERole.ROLE_USER)
                     .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
@@ -101,13 +104,15 @@ public class AuthController {
                     roles.add(modRole);
                 } else {
                     Role userRole = roleRepository.findByName(ERole.ROLE_USER)
-                            .orElseThrow(() -> new RuntimeException("Error: Role is not found. "));
+                            .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                     roles.add(userRole);
                 }
             });
         }
+
         user.setRoles(roles);
         userRepository.save(user);
+
         return ResponseEntity.ok(new MessegeResponse("User registered successfully!"));
     }
 }

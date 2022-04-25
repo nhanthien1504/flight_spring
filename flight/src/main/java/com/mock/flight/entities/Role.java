@@ -1,6 +1,7 @@
 package com.mock.flight.entities;
 
 import com.mock.flight.common.ERole;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -10,11 +11,16 @@ import javax.persistence.*;
 @Getter
 @Setter
 @Table(name="roles")
+@Data
 public class Role {
+
+    public Integer getId(){
+        return id;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column
     @Enumerated(EnumType.STRING)
@@ -23,8 +29,7 @@ public class Role {
     public Role() {
     }
 
-    public Role(Long id, ERole name) {
-        this.id = id;
+    public Role(ERole name){
         this.name = name;
     }
 }

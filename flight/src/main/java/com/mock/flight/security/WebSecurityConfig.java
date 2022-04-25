@@ -5,6 +5,7 @@ import com.mock.flight.config.AuthenEntryPointJwt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -26,10 +27,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     AuthenEntryPointJwt unAuthorized;
 
     @Autowired
-    UserDetailsServiceImp userDetailsServiceImp;
+    UserDetailServiceImpl userDetailsServiceImp;
 
-    @Autowired
-    AuthTokenFilter authTokenFilter;
+
+
 
     @Bean
     public PasswordEncoder passwordEncode() {
@@ -37,15 +38,14 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    @Override
-    public AuthenticationManager authenticationManagerBean() throws Exception {
-        return super.authenticationManagerBean();
+    public AuthTokenFilter authTokenJwtFilter(){
+        return new AuthTokenFilter();
     }
 
 
-    @Override
     @Bean
-    public AuthenticationManager authenticationManager() throws Exception {
+    @Override
+    public AuthenticationManager authenticationManagerBean() throws Exception {
         return super.authenticationManagerBean();
     }
 
@@ -65,16 +65,22 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.cors().and().csrf().disable()
-                .authorizeRequests().antMatchers("/api/auth/**").permitAll()
-                .antMatchers("/api/test/*").permitAll()
-                .antMatchers("/api/*/create").hasAnyRole("ADMIN", "USER")
-                .antMatchers("/api/*/update").hasAnyRole("ADMIN", "USER")
-                .antMatchers("/api/*/delete").hasRole("ADMIN")
-                .antMatchers("/api/*/find").permitAll()
-                .antMatchers("/error").permitAll()
-                .anyRequest().authenticated().and()
                 .exceptionHandling().authenticationEntryPoint(unAuthorized).and()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-        http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
+                .authorizeRequests().antMatchers("/api/auth/**").permitAll()
+//                .antMatchers(,"/api/test/**").hasAnyRole("USER")
+                .antMatchers(HttpMethod.POST,"/**/create").hasAnyRole("ADMIN", "USER")
+                .antMatchers(HttpMethod.PUT,"/*/update").hasAnyRole("ADMIN", "USER")
+                .antMatchers(HttpMethod.DELETE,"/*/delete").hasRole("ADMIN")
+                .antMatchers(HttpMethod.GET, "/*/find").hasAnyRole("USER","ADMIN")
+                .antMatchers("/api/**/find").hasAnyRole("USER")
+                .antMatchers("/error").permitAll()
+                .anyRequest().authenticated().and();
+        http.addFilterBefore(authTokenJwtFilter(), UsernamePasswordAuthenticationFilter.class);
+    }
+
+    @Bean
+    public AuthTokenFilter authenticationJwtTokenFilter() {
+        return new AuthTokenFilter();
     }
 }

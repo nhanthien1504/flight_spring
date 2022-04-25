@@ -5,16 +5,21 @@ import com.mock.flight.model.Certificate;
 import com.mock.flight.model.MockProjectResponse;
 import com.mock.flight.services.CertificateServices;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+
 @RestController
+@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/certificate")
 public class CertificateController {
+
 
     @Autowired
     private CertificateServices certificateServices;
 
-    @GetMapping("/find")
+    @PreAuthorize("hasRole('ROLE_USER')")
+    @RequestMapping(value = "/find",method=RequestMethod.GET)
     public MockProjectResponse getCertificateAll() {
         return certificateServices.getAllCertificate();
     }
